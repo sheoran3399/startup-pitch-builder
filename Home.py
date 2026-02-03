@@ -24,8 +24,6 @@ try:
     from crews.research_crew import (
         run_research_crew,
         get_available_providers,
-        check_ollama_running,
-        check_ollama_model,
         PROVIDER_CONFIGS
     )
     CREW_AVAILABLE = True
@@ -215,16 +213,14 @@ if not CREW_AVAILABLE:
     """)
     st.stop()
 
-# Get available providers
+# Verify OpenAI provider is available
 available_providers = get_available_providers()
 
-if not available_providers:
+if "openai" not in available_providers:
     st.error("""
-    **No LLM providers available.**
-    
-    Install at least one:
-    - For Ollama (free, local): `pip install langchain-community`
-    - For OpenAI (paid, cloud): `pip install langchain-openai`
+    **OpenAI provider not available.**
+
+    Please ensure `langchain-openai` is installed.
     """)
     st.stop()
 
@@ -235,63 +231,30 @@ if not available_providers:
 
 with st.sidebar:
     st.header("⚙️ Configuration")
-    
-    # Provider selection
-    provider_options = list(available_providers.keys())
-    provider_names = [PROVIDER_CONFIGS[p].display_name for p in provider_options]
-    
-    provider_choice = st.selectbox(
-        "Select Provider",
-        options=provider_options,
-        format_func=lambda x: PROVIDER_CONFIGS[x].display_name,
-        help="Choose between local (Ollama) or cloud (OpenAI) AI"
+
+    provider_choice = "openai"
+
+    api_key = st.text_input(
+        "OpenAI API Key",
+        type="password",
+        value=os.getenv("OPENAI_API_KEY", ""),
+        help="Enter your OpenAI API key. Get one at platform.openai.com"
     )
-    
-    config = PROVIDER_CONFIGS[provider_choice]
-    st.caption(config.description)
-    
-    # Provider-specific settings
-    if provider_choice == "ollama":
-        # Check Ollama status
-        ollama_running = check_ollama_running()
-        if ollama_running:
-            st.success("✅ Ollama is running")
-            if check_ollama_model():
-                st.caption("llama3.2 model ready")
-            else:
-                st.warning("⚠️ llama3.2 not found. Run: `ollama pull llama3.2`")
-        else:
-            st.error("❌ Ollama not running. Start with: `ollama serve`")
-        
-        ollama_model = st.selectbox(
-            "Model",
-            options=["llama3.2", "llama3.1", "mistral", "phi3", "gemma2"],
-            help="Select Ollama model"
-        )
-        api_key = None
-        
-    elif provider_choice == "openai":
-        api_key = st.text_input(
-            "OpenAI API Key",
-            type="password",
-            value=os.getenv("OPENAI_API_KEY", ""),
-            help="Enter your OpenAI API key or set OPENAI_API_KEY environment variable"
-        )
-        # Filter out placeholder
-        if api_key and api_key.startswith("not-used-"):
-            api_key = ""
-            
-        if not api_key:
-            st.warning("⚠️ API key required")
-        
-        openai_model = st.selectbox(
-            "Model",
-            options=["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
-            help="Select OpenAI model"
-        )
-    
+    # Filter out placeholder
+    if api_key and api_key.startswith("not-used-"):
+        api_key = ""
+
+    if not api_key:
+        st.warning("⚠️ API key required")
+
+    openai_model = st.selectbox(
+        "Model",
+        options=["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
+        help="gpt-4o-mini is fastest and cheapest (~$0.01/run)"
+    )
+
     st.divider()
-    
+
     # Telemetry options
     st.subheader("📊 Display Options")
     show_agent_outputs = st.checkbox("Show individual agent outputs", value=True)
@@ -330,11 +293,7 @@ topic = st.text_area(
 )
 
 # Validation
-can_run = bool(topic)
-if provider_choice == "openai" and not api_key:
-    can_run = False
-if provider_choice == "ollama" and not check_ollama_running():
-    can_run = False
+can_run = bool(topic) and bool(api_key)
 
 # Run button
 col1, col2, col3 = st.columns([1, 2, 1])
@@ -405,11 +364,8 @@ if run_button and can_run:
         "verbose": False
     }
     
-    if provider_choice == "ollama":
-        run_params["model"] = ollama_model
-    elif provider_choice == "openai":
-        run_params["api_key"] = api_key
-        run_params["model"] = openai_model
+    run_params["api_key"] = api_key
+    run_params["model"] = openai_model
     
     # Update UI to show running
     status_text.text("📊 Market Analyst is evaluating the opportunity...")

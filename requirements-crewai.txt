@@ -8,3 +8,4 @@
 crewai>=0.28.0
 langchain-community>=0.0.20
 langchain-openai>=0.0.5
+litellm

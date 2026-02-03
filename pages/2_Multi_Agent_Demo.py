@@ -66,9 +66,9 @@ st.markdown("""
         margin: 0.5rem 0;
         border-left: 4px solid #6c757d;
     }
-    .agent-researcher { border-left-color: #0066cc; }
-    .agent-writer { border-left-color: #28a745; }
-    .agent-editor { border-left-color: #9933cc; }
+    .agent-analyst { border-left-color: #0066cc; }
+    .agent-strategist { border-left-color: #28a745; }
+    .agent-pitcher { border-left-color: #9933cc; }
     
     .status-badge {
         display: inline-block;
@@ -201,8 +201,8 @@ def format_cost(cost: float) -> str:
 # =============================================================================
 
 # Header
-st.markdown('<p class="main-header">🤖 Multi-Agent Research Demo</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Watch three AI agents collaborate with full telemetry</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-header">🚀 Startup Pitch Builder</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">Watch three AI agents build your investor pitch with full telemetry</p>', unsafe_allow_html=True)
 
 # Check if crew is available
 if not CREW_AVAILABLE:
@@ -306,13 +306,13 @@ with st.sidebar:
 with st.expander("ℹ️ How it works", expanded=False):
     st.markdown("""
     This demo runs **three AI agents** that collaborate sequentially:
-    
-    1. **🔍 Researcher** - Gathers facts, statistics, and key insights
-    2. **✍️ Writer** - Transforms research into clear, engaging prose  
-    3. **📝 Editor** - Polishes for clarity, accuracy, and professionalism
-    
-    Each agent passes their work to the next, similar to a real content team.
-    
+
+    1. **📊 Market Analyst** - Evaluates market size, competitors, and opportunity
+    2. **🎯 Strategist** - Defines positioning, target audience, and business model
+    3. **🎤 Pitch Writer** - Crafts a compelling investor pitch narrative
+
+    Each agent passes their work to the next, like a real startup advisory team.
+
     **Telemetry tracked:**
     - ⏱️ Duration per agent
     - 🔢 Token counts (input/output)
@@ -321,10 +321,10 @@ with st.expander("ℹ️ How it works", expanded=False):
     """)
 
 # Topic input
-st.subheader("📝 Research Topic")
+st.subheader("💡 Startup Idea")
 topic = st.text_area(
-    "What would you like the team to research?",
-    placeholder="Example: The impact of artificial intelligence on healthcare diagnostics",
+    "Describe your startup idea for the team to analyze and pitch",
+    placeholder="Example: An AI-powered platform that helps small restaurants reduce food waste by predicting daily demand",
     height=100,
     label_visibility="collapsed"
 )
@@ -340,7 +340,7 @@ if provider_choice == "ollama" and not check_ollama_running():
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     run_button = st.button(
-        "🚀 Run Research Crew",
+        "🚀 Build My Pitch",
         type="primary",
         disabled=not can_run,
         use_container_width=True
@@ -364,28 +364,28 @@ if run_button and can_run:
     agent_cols = st.columns(3)
     
     with agent_cols[0]:
-        researcher_card = st.empty()
-        researcher_card.markdown("""
-        <div class="agent-card agent-researcher">
-            <strong>🔍 Researcher</strong><br/>
+        analyst_card = st.empty()
+        analyst_card.markdown("""
+        <div class="agent-card agent-analyst">
+            <strong>📊 Market Analyst</strong><br/>
             <span class="status-badge status-pending">Waiting...</span>
         </div>
         """, unsafe_allow_html=True)
-    
+
     with agent_cols[1]:
-        writer_card = st.empty()
-        writer_card.markdown("""
-        <div class="agent-card agent-writer">
-            <strong>✍️ Writer</strong><br/>
+        strategist_card = st.empty()
+        strategist_card.markdown("""
+        <div class="agent-card agent-strategist">
+            <strong>🎯 Strategist</strong><br/>
             <span class="status-badge status-pending">Waiting...</span>
         </div>
         """, unsafe_allow_html=True)
-    
+
     with agent_cols[2]:
-        editor_card = st.empty()
-        editor_card.markdown("""
-        <div class="agent-card agent-editor">
-            <strong>📝 Editor</strong><br/>
+        pitcher_card = st.empty()
+        pitcher_card.markdown("""
+        <div class="agent-card agent-pitcher">
+            <strong>🎤 Pitch Writer</strong><br/>
             <span class="status-badge status-pending">Waiting...</span>
         </div>
         """, unsafe_allow_html=True)
@@ -412,10 +412,10 @@ if run_button and can_run:
         run_params["model"] = openai_model
     
     # Update UI to show running
-    status_text.text("🔍 Researcher is gathering information...")
-    researcher_card.markdown("""
-    <div class="agent-card agent-researcher">
-        <strong>🔍 Researcher</strong><br/>
+    status_text.text("📊 Market Analyst is evaluating the opportunity...")
+    analyst_card.markdown("""
+    <div class="agent-card agent-analyst">
+        <strong>📊 Market Analyst</strong><br/>
         <span class="status-badge status-running">Working... ⏳</span>
     </div>
     """, unsafe_allow_html=True)
@@ -432,39 +432,39 @@ if run_button and can_run:
         telemetry = result.telemetry
         
         # Update agent cards with telemetry
-        researcher_data = telemetry.agents[0] if len(telemetry.agents) > 0 else None
-        writer_data = telemetry.agents[1] if len(telemetry.agents) > 1 else None
-        editor_data = telemetry.agents[2] if len(telemetry.agents) > 2 else None
-        
-        # Researcher complete
-        researcher_card.markdown(f"""
-        <div class="agent-card agent-researcher">
-            <strong>🔍 Researcher</strong>
+        analyst_data = telemetry.agents[0] if len(telemetry.agents) > 0 else None
+        strategist_data = telemetry.agents[1] if len(telemetry.agents) > 1 else None
+        pitcher_data = telemetry.agents[2] if len(telemetry.agents) > 2 else None
+
+        # Market Analyst complete
+        analyst_card.markdown(f"""
+        <div class="agent-card agent-analyst">
+            <strong>📊 Market Analyst</strong>
             <span class="status-badge status-done">Complete ✓</span><br/>
-            <span class="time-badge">⏱️ {format_duration(researcher_data.duration_seconds if researcher_data else 0)}</span>
-            <span class="token-badge">🔢 {format_tokens(researcher_data.total_tokens if researcher_data else 0)} tokens</span>
+            <span class="time-badge">⏱️ {format_duration(analyst_data.duration_seconds if analyst_data else 0)}</span>
+            <span class="token-badge">🔢 {format_tokens(analyst_data.total_tokens if analyst_data else 0)} tokens</span>
         </div>
         """, unsafe_allow_html=True)
         progress_bar.progress(40)
-        
-        # Writer complete
-        writer_card.markdown(f"""
-        <div class="agent-card agent-writer">
-            <strong>✍️ Writer</strong>
+
+        # Strategist complete
+        strategist_card.markdown(f"""
+        <div class="agent-card agent-strategist">
+            <strong>🎯 Strategist</strong>
             <span class="status-badge status-done">Complete ✓</span><br/>
-            <span class="time-badge">⏱️ {format_duration(writer_data.duration_seconds if writer_data else 0)}</span>
-            <span class="token-badge">🔢 {format_tokens(writer_data.total_tokens if writer_data else 0)} tokens</span>
+            <span class="time-badge">⏱️ {format_duration(strategist_data.duration_seconds if strategist_data else 0)}</span>
+            <span class="token-badge">🔢 {format_tokens(strategist_data.total_tokens if strategist_data else 0)} tokens</span>
         </div>
         """, unsafe_allow_html=True)
         progress_bar.progress(70)
-        
-        # Editor complete
-        editor_card.markdown(f"""
-        <div class="agent-card agent-editor">
-            <strong>📝 Editor</strong>
+
+        # Pitch Writer complete
+        pitcher_card.markdown(f"""
+        <div class="agent-card agent-pitcher">
+            <strong>🎤 Pitch Writer</strong>
             <span class="status-badge status-done">Complete ✓</span><br/>
-            <span class="time-badge">⏱️ {format_duration(editor_data.duration_seconds if editor_data else 0)}</span>
-            <span class="token-badge">🔢 {format_tokens(editor_data.total_tokens if editor_data else 0)} tokens</span>
+            <span class="time-badge">⏱️ {format_duration(pitcher_data.duration_seconds if pitcher_data else 0)}</span>
+            <span class="token-badge">🔢 {format_tokens(pitcher_data.total_tokens if pitcher_data else 0)} tokens</span>
         </div>
         """, unsafe_allow_html=True)
         progress_bar.progress(100)
@@ -500,7 +500,7 @@ if run_button and can_run:
         if show_agent_outputs and result.task_outputs:
             with st.expander("👥 Individual Agent Outputs", expanded=True):
                 for agent_name, output in result.task_outputs.items():
-                    icon = "🔍" if agent_name == "Researcher" else "✍️" if agent_name == "Writer" else "📝"
+                    icon = "📊" if agent_name == "Market Analyst" else "🎯" if agent_name == "Strategist" else "🎤"
                     agent_telem = next((a for a in telemetry.agents if a.agent_name == agent_name), None)
                     
                     st.markdown(f"**{icon} {agent_name}**")

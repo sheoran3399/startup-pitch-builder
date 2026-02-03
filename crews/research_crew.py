@@ -214,13 +214,22 @@ def get_llm(provider: str, api_key: Optional[str] = None, model: Optional[str] =
     model_name = model or config.model
     
     if provider == "ollama":
-        if not OLLAMA_AVAILABLE:
-            raise ImportError("langchain-community not installed. Run: pip install langchain-community")
-        
-        return Ollama(
-            model=model_name,
-            base_url=config.base_url
-        )
+        # CrewAI v1.x uses its own LLM class with LiteLLM routing.
+        # The 'ollama/' prefix tells LiteLLM to use the Ollama provider.
+        try:
+            from crewai import LLM
+            return LLM(
+                model=f"ollama/{model_name}",
+                base_url=config.base_url
+            )
+        except (ImportError, Exception):
+            # Fallback to legacy langchain Ollama for older CrewAI versions
+            if not OLLAMA_AVAILABLE:
+                raise ImportError("langchain-community not installed. Run: pip install langchain-community")
+            return Ollama(
+                model=model_name,
+                base_url=config.base_url
+            )
     
     elif provider == "openai":
         if not OPENAI_AVAILABLE:
@@ -289,104 +298,108 @@ def check_ollama_model(model: str = "llama3.2") -> bool:
 
 def create_research_crew(llm, verbose: bool = True) -> Dict[str, Agent]:
     """
-    Create a research crew with three specialized agents.
-    
+    Create a startup pitch crew with three specialized agents.
+
     Returns dict of agents keyed by role name for easier telemetry tracking.
     """
-    
-    researcher = Agent(
-        role="Research Analyst",
-        goal="Gather comprehensive, accurate information on the given topic",
-        backstory="""You are an experienced research analyst with a keen eye for detail.
-        You excel at finding relevant information, identifying key trends, and 
-        synthesizing complex data into clear insights. You always verify your sources
-        and present balanced, factual information.""",
+
+    market_analyst = Agent(
+        role="Market Analyst",
+        goal="Evaluate market opportunity, competitors, and trends for the startup idea",
+        backstory="""You are a seasoned market analyst with 15 years of experience evaluating
+        startup opportunities. You specialize in identifying market size, growth trends,
+        competitor landscapes, and unmet customer needs. You back up your analysis with data
+        and are known for your honest, no-hype assessments. You always consider both the
+        opportunity and the risks.""",
         verbose=verbose,
         allow_delegation=False,
         llm=llm
     )
-    
-    writer = Agent(
-        role="Content Writer",
-        goal="Transform research into clear, engaging content",
-        backstory="""You are a skilled content writer who excels at making complex 
-        topics accessible to general audiences. You write with clarity and precision,
-        organizing information logically and maintaining reader engagement throughout.
-        You adapt your tone to suit the subject matter while keeping content professional.""",
+
+    strategist = Agent(
+        role="Strategist",
+        goal="Define positioning, target audience, and business model",
+        backstory="""You are a startup strategist who has helped launch over 50 companies
+        from seed to Series A. You excel at defining clear value propositions, identifying
+        target customer segments, and designing business models that scale. You think in
+        terms of competitive moats, go-to-market strategy, and unit economics. You are
+        concise and action-oriented.""",
         verbose=verbose,
         allow_delegation=False,
         llm=llm
     )
-    
-    editor = Agent(
-        role="Editor",
-        goal="Polish content for clarity, accuracy, and professionalism",
-        backstory="""You are a meticulous editor with years of experience refining 
-        written content. You check for factual accuracy, improve clarity, fix any
-        grammatical issues, and ensure the final output is polished and professional.
-        You maintain the author's voice while elevating the quality of the writing.""",
+
+    pitch_writer = Agent(
+        role="Pitch Writer",
+        goal="Craft a compelling investor pitch narrative",
+        backstory="""You are an expert pitch deck writer who has helped startups raise over
+        $500M in combined funding. You know how to tell a compelling story that hooks
+        investors in the first 30 seconds. You structure pitches with a clear
+        problem-solution narrative, market opportunity, and a strong ask. You write with
+        confidence and urgency while staying grounded in facts.""",
         verbose=verbose,
         allow_delegation=False,
         llm=llm
     )
-    
+
     return {
-        "Researcher": researcher,
-        "Writer": writer,
-        "Editor": editor
+        "Market Analyst": market_analyst,
+        "Strategist": strategist,
+        "Pitch Writer": pitch_writer
     }
 
 
 def create_tasks(agents: Dict[str, Agent], topic: str) -> List[Task]:
     """Create tasks for each agent with clear handoffs."""
-    
-    research_task = Task(
-        description=f"""Research the following topic thoroughly: {topic}
-        
-        Your research should include:
-        1. Key facts and statistics
-        2. Current trends and developments
-        3. Important considerations or challenges
-        4. Notable examples or case studies (if relevant)
-        
-        Provide comprehensive but focused research that will serve as the 
-        foundation for a well-written brief.""",
-        expected_output="A detailed research brief with facts, statistics, and key insights",
-        agent=agents["Researcher"]
+
+    market_analysis_task = Task(
+        description=f"""Analyze the market opportunity for this startup idea: {topic}
+
+        Your analysis should include:
+        1. Total addressable market (TAM) and growth trends
+        2. Key competitors and their strengths/weaknesses
+        3. Unmet customer needs and pain points
+        4. Market risks and potential barriers to entry
+
+        Provide a data-driven market assessment that will inform the
+        business strategy.""",
+        expected_output="A detailed market analysis with TAM, competitors, and opportunity assessment",
+        agent=agents["Market Analyst"]
     )
-    
-    writing_task = Task(
-        description=f"""Using the research provided, write a clear and engaging brief about: {topic}
-        
-        Your brief should:
-        1. Have a clear introduction that frames the topic
-        2. Present key information in a logical flow
-        3. Include relevant examples or data points
-        4. Conclude with key takeaways
-        
-        Target length: 300-500 words. Make it accessible to a general business audience.""",
-        expected_output="A well-structured, engaging brief of 300-500 words",
-        agent=agents["Writer"],
-        context=[research_task]
+
+    strategy_task = Task(
+        description=f"""Using the market analysis provided, define a winning strategy for: {topic}
+
+        Your strategy should cover:
+        1. Clear value proposition (why customers will choose this)
+        2. Target customer segments (who are the first adopters)
+        3. Business model and revenue streams
+        4. Go-to-market approach and competitive moat
+
+        Be specific and actionable. Think like a founder who needs to execute.""",
+        expected_output="A focused business strategy with positioning, target audience, and business model",
+        agent=agents["Strategist"],
+        context=[market_analysis_task]
     )
-    
-    editing_task = Task(
-        description="""Review and polish the written brief.
-        
-        Your editing should:
-        1. Check for factual accuracy and consistency
-        2. Improve clarity and readability
-        3. Fix any grammatical or stylistic issues
-        4. Ensure professional tone throughout
-        5. Verify the brief is well-organized and flows logically
-        
-        Provide the final, polished version of the brief.""",
-        expected_output="A polished, publication-ready brief",
-        agent=agents["Editor"],
-        context=[writing_task]
+
+    pitch_task = Task(
+        description="""Using the market analysis and strategy, write a compelling investor pitch.
+
+        Your pitch should include:
+        1. A hook that captures attention immediately
+        2. The problem (make investors feel the pain)
+        3. The solution (your startup's approach)
+        4. Market opportunity (backed by data from the analysis)
+        5. Business model (how you make money)
+        6. The ask (what you need and what investors get)
+
+        Target length: 400-600 words. Write as if presenting to a room of VCs.""",
+        expected_output="A polished, investor-ready pitch narrative of 400-600 words",
+        agent=agents["Pitch Writer"],
+        context=[strategy_task]
     )
-    
-    return [research_task, writing_task, editing_task]
+
+    return [market_analysis_task, strategy_task, pitch_task]
 
 
 # =============================================================================
@@ -443,12 +456,12 @@ def run_research_crew(
     )
     
     # Initialize agent telemetry
-    agent_names = ["Researcher", "Writer", "Editor"]
-    agent_roles = ["Research Analyst", "Content Writer", "Editor"]
+    agent_names = ["Market Analyst", "Strategist", "Pitch Writer"]
+    agent_roles = ["Market Analyst", "Strategist", "Pitch Writer"]
     task_descriptions = [
-        f"Research the topic: {topic}",
-        "Write a clear brief from the research",
-        "Polish and edit the final brief"
+        f"Analyze the market opportunity for: {topic}",
+        "Define positioning, target audience, and business model",
+        "Craft a compelling investor pitch narrative"
     ]
     
     for i, name in enumerate(agent_names):
@@ -494,7 +507,7 @@ def run_research_crew(
         # For more granular tracking, we'd need to hook into CrewAI callbacks
         
         if callback:
-            callback("status", "🔍 Researcher is gathering information...")
+            callback("status", "📊 Market Analyst is evaluating the opportunity...")
             crew_telemetry.agents[0].status = "running"
             crew_telemetry.agents[0].start_time = time.time()
             callback("agent_start", crew_telemetry.agents[0])
@@ -616,7 +629,7 @@ def print_telemetry(telemetry: CrewTelemetry):
     print("-" * 70)
     
     for agent in telemetry.agents:
-        print(f"\n{'🔍' if agent.agent_name == 'Researcher' else '✍️' if agent.agent_name == 'Writer' else '📝'} {agent.agent_name} ({agent.role})")
+        print(f"\n{'📊' if agent.agent_name == 'Market Analyst' else '🎯' if agent.agent_name == 'Strategist' else '🎤'} {agent.agent_name} ({agent.role})")
         print(f"   ├─ Duration: {agent.duration_seconds:.1f}s")
         print(f"   ├─ Tokens: {agent.total_tokens:,} (in: {agent.input_tokens:,}, out: {agent.output_tokens:,})")
         print(f"   ├─ API Calls: {agent.api_calls}")
